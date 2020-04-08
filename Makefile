@@ -87,6 +87,85 @@ tags: $(OBJS) _init
 
 ULIB = $U/ulib.o $U/usys.o $U/printf.o $U/umalloc.o
 
+# LIBC STUFF
+TIME_DIR = ./user/libc/time/
+
+TIME_TEST_DIR = ./user/libc/time/test/
+
+TIME = $(TIME_DIR)time.o\
+	$(TIME_DIR)difftime.o\
+	$(TIME_DIR)mktime.o\
+	$(TIME_DIR)asctime.o\
+
+TIME_SRC = $(TIME_DIR)time.c\
+		$(TIME_DIR)difftime.c\
+		$(TIME_DIR)mktime.c\
+		$(TIME_DIR)asctime.c\
+
+TIME_TEST = $(TIME_TEST_DIR)test_time.o\
+			$(TIME_TEST_DIR)test_difftime.o\
+			$(TIME_TEST_DIR)test_mktime.o\
+			$(TIME_TEST_DIR)test_asctime.o\
+
+TIME_TEST_SRC = $(TIME_TEST_DIR)test_time.c\
+				$(TIME_TEST_DIR)test_difftime.c\
+				$(TIME_TEST_DIR)test_mktime.c\
+				$(TIME_TEST_DIR)test_asctime.c\
+
+TIME_TEST_OBJ_FILES = test_time.o test_difftime.o test_mktime.o test_asctime.o
+
+
+STDLIB_DIR = ./user/libc/stdlib/
+
+STDLIB_TEST_DIR = ./user/libc/stdlib/test/
+
+SETJMP_DIR = ./libc/setjmp/
+SETJMP_TEST_DIR = ./user/libc/setjmp/test/
+
+STDLIB = $(STDLIB_DIR)atoi.o\
+	   $(STDLIB_DIR)abs.o\
+	   $(STDLIB_DIR)atol.o\
+	   $(STDLIB_DIR)bsearch.o\
+	   $(STDLIB_DIR)atoll.o\
+	   $(STDLIB_DIR)div.o\
+	   $(STDLIB_DIR)labs.o\
+	   $(STDLIB_DIR)ldiv.o\
+	   $(STDLIB_DIR)qsort.o\
+
+STDLIB_SRC = $(STDLIB_DIR)atoi.c\
+		   $(STDLIB_DIR)abs.c\
+		   $(STDLIB_DIR)abs.c\
+		   $(STDLIB_DIR)bsearch.c\
+		   $(STDLIB_DIR)atoll.c\
+		   $(STDLIB_DIR)atol.c\
+		   $(STDLIB_DIR)div.c\
+		   $(STDLIB_DIR)labs.c\
+		   $(STDLIB_DIR)ldiv.c\
+		   $(STDLIB_DIR)qsort.c\
+
+STDLIB_TEST = $(STDLIB_TEST_DIR)test_abs.o\
+			$(STDLIB_TEST_DIR)test_bsearch.o\
+			$(STDLIB_TEST_DIR)test_atoi.o\
+			$(STDLIB_TEST_DIR)test_atol.o\
+			$(STDLIB_TEST_DIR)test_atoll.o\
+			$(STDLIB_TEST_DIR)test_div.o\
+			$(STDLIB_TEST_DIR)test_labs.o\
+			$(STDLIB_TEST_DIR)test_ldiv.o\
+			$(STDLIB_TEST_DIR)test_qsort.o\
+
+STDLIB_TEST_SRC = $(STDLIB_TEST_DIR)test_abs.c\
+				$(STDLIB_TEST_DIR)test_bsearch.c\
+				$(STDLIB_TEST_DIR)test_atoi.c\
+				$(STDLIB_TEST_DIR)test_atol.c\
+				$(STDLIB_TEST_DIR)test_atoll.c\
+				$(STDLIB_TEST_DIR)test_div.c\
+				$(STDLIB_TEST_DIR)test_labs.c\
+				$(STDLIB_TEST_DIR)test_ldiv.c\
+				$(STDLIB_TEST_DIR)test_qsort.c\
+
+TEST_OBJ_FILES = test_bsearch.o test_abs.o test_atoi.o test_atol.o test_atoll.o test_div.o test_labs.o test_ldiv.o test_qsort.o
+
+
 _%: %.o $(ULIB)
 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
 	$(OBJDUMP) -S $@ > $*.asm
@@ -103,6 +182,25 @@ $U/_forktest: $U/forktest.o $(ULIB)
 	# in order to be able to max out the proc table.
 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $U/_forktest $U/forktest.o $U/ulib.o $U/usys.o
 	$(OBJDUMP) -S $U/_forktest > $U/forktest.asm
+
+LIBCTEST_LIBS = $U/libctest.o\
+			$U/ulib.o\
+			$U/printf.o\
+			$U/umalloc.o\
+			$(STDLIB_TEST)\
+			$(STDLIB)\
+			$U/usys.o			
+
+$U/_libctest: $U/libctest.o $(STDLIB)
+	# @echo "==== BUILDING TIME ===="
+	# $(CC) $(CFLAGS) -c $(TIME_TEST_SRC)
+	# mv $(TIME_TEST_OBJ_FILES) $(TIME_TEST_DIR)
+	@echo "==== BUILDING STDLIB ===="
+	$(CC) $(CFLAGS) -c $(STDLIB_TEST_SRC)
+	mv $(TEST_OBJ_FILES)  $(STDLIB_TEST_DIR)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $U/_libctest $(LIBCTEST_LIBS)
+	# $(OBJDUMP) -S _libctest > libctest.asm
+
 
 mkfs/mkfs: mkfs/mkfs.c $K/fs.h
 	gcc -Werror -Wall -I. -o mkfs/mkfs mkfs/mkfs.c
@@ -129,6 +227,7 @@ UPROGS=\
 	$U/_usertests\
 	$U/_wc\
 	$U/_zombie\
+	$U/_libctest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -173,10 +272,12 @@ qemu-gdb: $K/kernel .gdbinit fs.img
 # rename it to rev0 or rev1 or so on and then
 # check in that version.
 
+LIBC_EXTRA =  $(STDLIB_TEST_SRC) $(STDLIB_SRC)
+
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	printf.c umalloc.c\
+	printf.c umalloc.c $(LIBC_EXTRA) libctest.c\
 	README dot-bochsrc *.pl \
 	.gdbinit.tmpl gdbutil\
 
@@ -208,5 +309,10 @@ tar:
 	mkdir -p /tmp/xv6
 	cp dist/* dist/.gdbinit.tmpl /tmp/xv6
 	(cd /tmp; tar cf - xv6) | gzip >xv6-rev10.tar.gz  # the next one will be 10 (9/17)
+
+rvemu:
+	riscv64-unknown-elf-objcopy -O binary kernel/kernel libc-kernel-$(v).text
+	mv libc-kernel-$(v).text ../rvemu/
+	mv fs.img ../rvemu/jve-fs-$(v).img
 
 .PHONY: dist-test dist
